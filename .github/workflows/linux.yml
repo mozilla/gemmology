@@ -1,0 +1,27 @@
+name: Linux build
+on: [push, pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.job }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash -l {0}
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Setup compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get --no-install-suggests --no-install-recommends install g++
+    - name: Checkout gemmology
+      uses: actions/checkout@v3
+    - name: Checkout xsimd
+      uses: actions/checkout@v3
+      with:
+        repository: QuantStack/xsimd
+        path: xsimd
+    - name: Setup SDE
+      run: sh .github/workflows/install_sde.sh
+    - name: Check
+      run: make -C test SDE64=../sde-external-8.56.0-2020-07-05-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Werror -j
