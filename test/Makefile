@@ -1,7 +1,13 @@
-## Configuration part
+##                  ##
+# Configuration part #
+
 XSIMD_INCLUDE_DIR=/usr
 SDE64=sde64
-##
+
+# ARM is disabled by default
+ARM_CXX=:
+ARM_QEMU=:
+######################
 
 
 GEMMOLOGY_CPPFLAGS= -I.. -I$(XSIMD_INCLUDE_DIR) $(CPPFLAGS)
@@ -11,9 +17,9 @@ GEMMOLOGY_CXXFLAGS= -std=c++17 $(CXXFLAGS)
 
 all:check
 
-check:check.avx2 check.sse4 check.ssse3 check.sse2 check.avx512
+check:check.avx2 check.sse4 check.ssse3 check.sse2 check.avx512 check.neon
 
-clean:clean.avx2 clean.sse4 clean.ssse3 clean.sse2 clean.avx512
+clean:clean.avx2 clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.neon
 
 # AVX512
 test_transpose.avx512: test_transpose.cpp ../gemmology.h Makefile
@@ -144,3 +150,25 @@ check.sse2:test_prepare_b_transposed.sse2 test_prepare_b_quantized_transposed.ss
 
 clean.sse2:
 	$(RM) test_prepare_b_transposed.sse2 test_prepare_b_quantized_transposed.sse2 test_multiply.sse2 test_quantize.sse2 test_transpose.sse2
+
+# Neon
+test_prepare_b_transposed.neon: test_prepare_b_transposed.cpp ../gemmology.h Makefile
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+
+test_prepare_b_quantized_transposed.neon: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+
+test_multiply.neon:test_multiply.cpp Makefile ../gemmology.h
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+
+test_quantize.neon:test_quantize.cpp Makefile ../gemmology.h
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+
+check.neon:test_prepare_b_transposed.neon test_prepare_b_quantized_transposed.neon test_multiply.neon test_quantize.neon
+	$(ARM_QEMU) ./test_prepare_b_transposed.neon
+	$(ARM_QEMU) ./test_prepare_b_quantized_transposed.neon
+	$(ARM_QEMU) ./test_quantize.neon
+	$(ARM_QEMU) ./test_multiply.neon
+
+clean.neon:
+	$(RM) test_prepare_b_transposed.neon test_prepare_b_quantized_transposed.neon test_multiply.neon test_quantize.neon test_transpose.neon

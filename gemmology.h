@@ -355,8 +355,139 @@ PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
 
 #endif
 
-// FIXME: check https://github.com/DLTcollab/sse2neon/blob/master/sse2neon.h for
-// neon implementation
+#if __ARM_ARCH >= 7
+template <class Arch>
+std::tuple<xsimd::batch<int8_t, Arch>, xsimd::batch<int8_t, Arch>>
+interleave(xsimd::batch<int8_t, Arch> first, xsimd::batch<int8_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon>) {
+  int8x8_t first_lo = vget_low_s8(first);
+  int8x8_t second_lo = vget_low_s8(second);
+  int8x8x2_t result_lo = vzip_s8(first_lo, second_lo);
+  int8x8_t first_hi = vget_high_s8(first);
+  int8x8_t second_hi = vget_high_s8(second);
+  int8x8x2_t result_hi = vzip_s8(first_hi, second_hi);
+  return {vcombine_s8(result_lo.val[0], result_lo.val[1]),
+          vcombine_s8(result_hi.val[0], result_hi.val[1])};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int16_t, Arch>, xsimd::batch<int16_t, Arch>>
+interleave(xsimd::batch<int16_t, Arch> first,
+           xsimd::batch<int16_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon>) {
+  int16x4_t first_lo = vget_low_s16(first);
+  int16x4_t second_lo = vget_low_s16(second);
+  int16x4x2_t result_lo = vzip_s16(first_lo, second_lo);
+  int16x4_t first_hi = vget_high_s16(first);
+  int16x4_t second_hi = vget_high_s16(second);
+  int16x4x2_t result_hi = vzip_s16(first_hi, second_hi);
+  return {vcombine_s16(result_lo.val[0], result_lo.val[1]),
+          vcombine_s16(result_hi.val[0], result_hi.val[1])};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
+interleave(xsimd::batch<int32_t, Arch> first,
+           xsimd::batch<int32_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon>) {
+  int32x2_t first_lo = vget_low_s32(first);
+  int32x2_t second_lo = vget_low_s32(second);
+  int32x2x2_t result_lo = vzip_s32(first_lo, second_lo);
+  int32x2_t first_hi = vget_high_s32(first);
+  int32x2_t second_hi = vget_high_s32(second);
+  int32x2x2_t result_hi = vzip_s32(first_hi, second_hi);
+  return {vcombine_s32(result_lo.val[0], result_lo.val[1]),
+          vcombine_s32(result_hi.val[0], result_hi.val[1])};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int64_t, Arch>, xsimd::batch<int64_t, Arch>>
+interleave(xsimd::batch<int64_t, Arch> first,
+           xsimd::batch<int64_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon>) {
+  int64x1_t first_lo = vget_low_s64(first);
+  int64x1_t second_lo = vget_low_s64(second);
+  int64x1_t first_hi = vget_high_s64(first);
+  int64x1_t second_hi = vget_high_s64(second);
+  return {vcombine_s64(first_lo, second_lo), vcombine_s64(first_hi, second_hi)};
+}
+
+template <class Arch>
+xsimd::batch<int8_t, Arch>
+deinterleave(xsimd::batch<int16_t, Arch> first,
+             xsimd::batch<int16_t, Arch> second,
+             xsimd::kernel::requires_arch<xsimd::neon>) {
+
+  return vcombine_s8(vqmovn_s16(first), vqmovn_s16(second));
+}
+
+template <class Arch>
+xsimd::batch<int16_t, Arch>
+deinterleave(xsimd::batch<int32_t, Arch> first,
+             xsimd::batch<int32_t, Arch> second,
+             xsimd::kernel::requires_arch<xsimd::neon>) {
+  return vcombine_s16(vqmovn_s32(first), vqmovn_s32(second));
+}
+
+template <class Arch>
+inline xsimd::batch<int32_t, Arch>
+madd(xsimd::batch<int16_t, Arch> x, xsimd::batch<int16_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon>) {
+
+  int32x4_t low = vmull_s16(vget_low_s16(x), vget_low_s16(y));
+  int32x4_t high = vmull_s16(vget_high_s16(x), vget_high_s16(y));
+
+  int32x2_t low_sum = vpadd_s32(vget_low_s32(low), vget_high_s32(low));
+  int32x2_t high_sum = vpadd_s32(vget_low_s32(high), vget_high_s32(high));
+
+  return vcombine_s32(low_sum, high_sum);
+}
+
+template <class Arch>
+inline xsimd::batch<int16_t, Arch>
+madd(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon>) {
+
+  // This would be much simpler if x86 would choose to zero extend OR sign
+  // extend, not both. This could probably be optimized better.
+
+  // Zero extend x
+  int16x8_t x_odd = vreinterpretq_s16_u16(vshrq_n_u16(vreinterpretq_u16_u8(x), 8));
+  int16x8_t x_even = vreinterpretq_s16_u16(vbicq_u16(vreinterpretq_u16_u8(x), vdupq_n_u16(0xff00)));
+
+  // Sign extend by shifting left then shifting right.
+  int16x8_t y_even = vshrq_n_s16(vshlq_n_s16(vreinterpretq_s16_s8(y), 8), 8);
+  int16x8_t y_odd = vshrq_n_s16(vreinterpretq_s16_s8(y), 8);
+
+  // multiply
+  int16x8_t prod1 = vmulq_s16(x_even, y_even);
+  int16x8_t prod2 = vmulq_s16(x_odd, y_odd);
+
+  // saturated add
+  return vqaddq_s16(prod1, prod2);
+}
+
+template <class Arch>
+inline xsimd::batch<int16_t, Arch>
+madd(xsimd::batch<int8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon>) {
+  int16x8_t low = vmull_s8(vget_low_s8(x), vget_low_s8(y));
+  int16x8_t high = vmull_s8(vget_high_s8(x), vget_high_s8(y));
+
+  int16x4_t low_sum = vpadd_s16(vget_low_s16(low), vget_high_s16(low));
+  int16x4_t high_sum = vpadd_s16(vget_low_s16(high), vget_high_s16(high));
+
+  return vcombine_s16(low_sum, high_sum);
+}
+
+template <class Arch>
+inline std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
+PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
+              xsimd::batch<int32_t, Arch> pack4567,
+              xsimd::kernel::requires_arch<xsimd::neon>) {
+  return {pack0123, pack4567};
+}
+#endif
 
 } // namespace kernel
 
