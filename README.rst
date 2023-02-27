@@ -55,7 +55,7 @@ Gemmology provides an SSE2 implementation of the original algorithm, while
 roughly 2.5 slower than the SSSE3 version.
 
 Gemmology provides a suboptimal implementation using NEON instructions for
-arm32.
+arm32 and aarch64.
 
 All Gemmology functions are parametrized by a target architecture (e.g.
 ``xsimd::sse4_2``) which is set to the best available at compile time. It's up

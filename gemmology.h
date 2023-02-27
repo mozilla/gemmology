@@ -452,8 +452,10 @@ madd(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
   // extend, not both. This could probably be optimized better.
 
   // Zero extend x
-  int16x8_t x_odd = vreinterpretq_s16_u16(vshrq_n_u16(vreinterpretq_u16_u8(x), 8));
-  int16x8_t x_even = vreinterpretq_s16_u16(vbicq_u16(vreinterpretq_u16_u8(x), vdupq_n_u16(0xff00)));
+  int16x8_t x_odd =
+      vreinterpretq_s16_u16(vshrq_n_u16(vreinterpretq_u16_u8(x), 8));
+  int16x8_t x_even = vreinterpretq_s16_u16(
+      vbicq_u16(vreinterpretq_u16_u8(x), vdupq_n_u16(0xff00)));
 
   // Sign extend by shifting left then shifting right.
   int16x8_t y_even = vshrq_n_s16(vshlq_n_s16(vreinterpretq_s16_s8(y), 8), 8);
@@ -487,6 +489,86 @@ PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
               xsimd::kernel::requires_arch<xsimd::neon>) {
   return {pack0123, pack4567};
 }
+#endif
+
+#ifdef __aarch64__
+template <class Arch>
+std::tuple<xsimd::batch<int8_t, Arch>, xsimd::batch<int8_t, Arch>>
+interleave(xsimd::batch<int8_t, Arch> first, xsimd::batch<int8_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return {vzip1q_s8(first, second), vzip2q_s8(first, second)};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int16_t, Arch>, xsimd::batch<int16_t, Arch>>
+interleave(xsimd::batch<int16_t, Arch> first,
+           xsimd::batch<int16_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return {vzip1q_s16(first, second), vzip2q_s16(first, second)};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
+interleave(xsimd::batch<int32_t, Arch> first,
+           xsimd::batch<int32_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return {vzip1q_s32(first, second), vzip2q_s32(first, second)};
+}
+
+template <class Arch>
+std::tuple<xsimd::batch<int64_t, Arch>, xsimd::batch<int64_t, Arch>>
+interleave(xsimd::batch<int64_t, Arch> first,
+           xsimd::batch<int64_t, Arch> second,
+           xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return {vzip1q_s64(first, second), vzip2q_s64(first, second)};
+}
+
+template <class Arch>
+xsimd::batch<int8_t, Arch>
+deinterleave(xsimd::batch<int16_t, Arch> first,
+             xsimd::batch<int16_t, Arch> second,
+             xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return vcombine_s8(vqmovn_s16(first), vqmovn_s16(second));
+}
+
+template <class Arch>
+xsimd::batch<int16_t, Arch>
+deinterleave(xsimd::batch<int32_t, Arch> first,
+             xsimd::batch<int32_t, Arch> second,
+             xsimd::kernel::requires_arch<xsimd::neon64>) {
+  return vcombine_s16(vqmovn_s32(first), vqmovn_s32(second));
+}
+
+template <class Arch>
+inline xsimd::batch<int32_t, Arch>
+madd(xsimd::batch<int16_t, Arch> x, xsimd::batch<int16_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon64>) {
+  int32x4_t low = vmull_s16(vget_low_s16(x), vget_low_s16(y));
+  int32x4_t high = vmull_high_s16(x, y);
+  return vpaddq_s32(low, high);
+}
+
+template <class Arch>
+inline xsimd::batch<int16_t, Arch>
+madd(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon64>) {
+
+  int16x8_t tl = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(x))),
+                           vmovl_s8(vget_low_s8(y)));
+  int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(x))),
+                           vmovl_s8(vget_high_s8(y)));
+  return vqaddq_s16(vuzp1q_s16(tl, th), vuzp2q_s16(tl, th));
+}
+
+template <class Arch>
+inline xsimd::batch<int16_t, Arch>
+madd(xsimd::batch<int8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+     xsimd::kernel::requires_arch<xsimd::neon64>) {
+  int16x8_t low = vmull_s8(vget_low_s8(x), vget_low_s8(y));
+  int16x8_t high = vmull_high_s8(x, y);
+  return vpaddq_s16(low, high);
+}
+
 #endif
 
 } // namespace kernel
