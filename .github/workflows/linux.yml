@@ -14,6 +14,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get --no-install-suggests --no-install-recommends install g++
+        sudo apt-get --no-install-suggests --no-install-recommends install g++-arm-linux-gnueabihf qemu-user binutils-arm-linux-gnueabihf
     - name: Checkout gemmology
       uses: actions/checkout@v3
     - name: Checkout xsimd
@@ -24,4 +25,4 @@ jobs:
     - name: Setup SDE
       run: sh .github/workflows/install_sde.sh
     - name: Check
-      run: make -C test SDE64=../sde-external-8.56.0-2020-07-05-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Werror -j
+      run: make -C test SDE64=../sde-external-8.56.0-2020-07-05-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Werror -j ARM_CXX=arm-linux-gnueabihf-g++ ARM_QEMU=qemu-arm\ -L\ /usr/arm-linux-gnueabihf
