@@ -34,7 +34,7 @@ it, then mostly follow `intgemm`_ API:
 
     float alpha = 25;
     float quant_mult = 127/alpha;
-    gemmology::PrepareA(A, A_prepared, quant_mult, A_rows, width);
+    gemmology::Shift::PrepareA(A, A_prepared, quant_mult, A_rows, width);
     gemmology::PrepareB(B, B_prepared, quant_mult, width, B_cols);
 
     /* Prepare the bias (inplace) */
