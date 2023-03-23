@@ -19,7 +19,7 @@ on 8-bit integer matrix multiplication and using
 `xsimd <https://github.com/QuantStack/xsimd>`_ as an abstract vector instructrion
 set when possible.
 
-THe original algorithm and API are left mostly untouched, appart from a few
+The original algorithm and API are left mostly untouched, appart from a few
 namespace changes.
 
 Usage
