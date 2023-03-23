@@ -1,25 +1,15 @@
-/***************************************************************
- *                                       _                     *
- *                                      | |                    *
- *   __ _  ___ _ __ ___  _ __ ___   ___ | | ___   __ _ _   _   *
- *  / _` |/ _ \ '_ ` _ \| '_ ` _ \ / _ \| |/ _ \ / _` | | | |  *
- * | (_| |  __/ | | | | | | | | | | (_) | | (_) | (_| | |_| |  *
- *  \__, |\___|_| |_| |_|_| |_| |_|\___/|_|\___/ \__, |\__, |  *
- *   __/ |                                        __/ | __/ |  *
- *  |___/                                        |___/ |___/   *
- *                                                             *
- *                                                 version 0.1 *
- ***************************************************************/
-
 #ifndef GEMMOLOGY_H
 #define GEMMOLOGY_H
 
-#include "gemmology.h"
+#include "gemmology_fwd.h"
 
-#include <array>
 #include <cstdint>
-#include <iostream>
+#include <cstring>
+#include <tuple>
+
 #include <xsimd/xsimd.hpp>
+
+namespace gemmology {
 
 namespace {
 
@@ -616,11 +606,6 @@ inline auto PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
     -> decltype(kernel::PermuteSummer(pack0123, pack4567, Arch{})) {
   return kernel::PermuteSummer(pack0123, pack4567, Arch{});
 }
-} // namespace
-
-namespace gemmology {
-
-namespace {
 
 inline xsimd::batch<int32_t> Pack0123(xsimd::batch<int32_t> sum0,
                                       xsimd::batch<int32_t> sum1,
@@ -636,123 +621,6 @@ inline xsimd::batch<int32_t> Pack0123(xsimd::batch<int32_t> sum0,
   return xsimd::bitwise_cast<int32_t>(std::get<0>(packed)) +
          xsimd::bitwise_cast<int32_t>(std::get<1>(packed));
 }
-
-} // namespace
-
-namespace callbacks {
-
-struct Unquantize {
-  float unquant_mult;
-  template <class Arch>
-  auto operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t, size_t) {
-    return xsimd::batch_cast<float>(total) * unquant_mult;
-  }
-  template <class Arch>
-  auto operator()(
-      std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
-          total,
-      size_t, size_t, size_t) {
-    return std::make_tuple(
-        xsimd::batch_cast<float>(std::get<0>(total)) * unquant_mult,
-        xsimd::batch_cast<float>(std::get<1>(total)) * unquant_mult);
-  }
-};
-
-struct AddBias {
-  const float *bias_addr;
-  template <class Arch>
-  auto operator()(xsimd::batch<float, Arch> total, size_t, size_t col_idx,
-                  size_t) {
-    return total + xsimd::batch<float, Arch>::load_aligned(bias_addr + col_idx);
-  }
-  template <class Arch>
-  auto operator()(
-      std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> total,
-      size_t, size_t col_idx, size_t) {
-    return std::make_tuple(
-        std::get<0>(total) + xsimd::load_aligned(bias_addr + col_idx + 0),
-        std::get<1>(total) +
-            xsimd::load_aligned(bias_addr + col_idx +
-                                xsimd::batch<float, Arch>::size));
-  }
-};
-
-struct Write {
-  float *output_addr;
-
-  Write(float *o) : output_addr(o) {}
-
-  template <class Arch>
-  void operator()(xsimd::batch<float, Arch> result, size_t row_idx,
-                  size_t col_idx, size_t col_size) {
-    result.store_aligned(output_addr + row_idx * col_size + col_idx);
-  }
-  template <class Arch>
-  void operator()(xsimd::batch<int32_t, Arch> result, size_t row_idx,
-                  size_t col_idx, size_t col_size) {
-    xsimd::bitwise_cast<float>(result).store_aligned(
-        output_addr + row_idx * col_size + col_idx);
-  }
-
-  template <class Arch>
-  void operator()(
-      std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> result,
-      size_t row_idx, size_t col_idx, size_t col_size) {
-    std::get<0>(result).store_aligned(output_addr + row_idx * col_size +
-                                      col_idx + 0);
-    std::get<1>(result).store_aligned(output_addr + row_idx * col_size +
-                                      col_idx +
-                                      xsimd::batch<float, Arch>::size);
-  }
-
-  template <class Arch>
-  void operator()(
-      std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
-          result,
-      size_t row_idx, size_t col_idx, size_t col_size) {
-    xsimd::bitwise_cast<float>(std::get<0>(result))
-        .store_aligned(output_addr + row_idx * col_size + col_idx + 0);
-    xsimd::bitwise_cast<float>(std::get<1>(result))
-        .store_aligned(output_addr + row_idx * col_size + col_idx +
-                       xsimd::batch<int32_t, Arch>::size);
-  }
-};
-
-struct UnquantizeAndWrite {
-
-  Unquantize unquantize;
-  Write write;
-
-  UnquantizeAndWrite(float factor, float *output)
-      : unquantize{factor}, write{output} {}
-
-  template <class T>
-  void operator()(T const &total, size_t row_idx, size_t col_idx,
-                  size_t col_size) {
-    auto unquantized = unquantize(total, row_idx, col_idx, col_size);
-    write(unquantized, row_idx, col_idx, col_size);
-  }
-};
-
-struct UnquantizeAndAddBiasAndWrite {
-
-  Unquantize unquantize;
-  AddBias add_bias;
-  Write write;
-
-  UnquantizeAndAddBiasAndWrite(float factor, const float *bias, float *output)
-      : unquantize{factor}, add_bias{bias}, write{output} {}
-
-  template <class T>
-  void operator()(T const &total, size_t row_idx, size_t col_idx,
-                  size_t col_size) {
-    auto unquantized = unquantize(total, row_idx, col_idx, col_size);
-    auto bias_added = add_bias(unquantized, row_idx, col_idx, col_size);
-    write(bias_added, row_idx, col_idx, col_size);
-  }
-};
-
-} // namespace callbacks
 
 template <class Arch>
 static inline xsimd::batch<int32_t, Arch>
@@ -961,88 +829,6 @@ private:
   }
 };
 
-template <class Arch = xsimd::default_arch>
-static void QuantizeU(const float *input, uint8_t *output, float quant_mult,
-                      size_t size) {
-  using batch8 = xsimd::batch<int8_t, Arch>;
-
-  xsimd::batch<float, Arch> q(quant_mult);
-  const float *end = input + size;
-  for (; input != end; input += batch8::size, output += batch8::size) {
-    auto tile = QuantizeTile8::ConsecutiveU(q, input);
-    tile.store_aligned(output);
-  }
-}
-
-template <class Arch = xsimd::default_arch>
-static void Quantize(const float *const input, int8_t *const output,
-                     float quant_mult, size_t size) {
-  using batch8 = xsimd::batch<int8_t, Arch>;
-
-  const std::size_t kBatch = batch8::size;
-  const std::size_t fast_end = size & ~(kBatch - 1);
-
-  xsimd::batch<float, Arch> q(quant_mult);
-  for (std::size_t i = 0; i < fast_end; i += kBatch) {
-    auto tile = QuantizeTile8::Consecutive(q, input + i);
-    tile.store_aligned(output + i);
-  }
-
-  std::size_t overhang = size & (kBatch - 1);
-  if (!overhang)
-    return;
-  /* Each does size(xsimd::batch<int8_t, Arch>) / 32 == kBatch / 4 floats at a
-   * time. If we're allowed to read one of them, then we can read the whole
-   * register.
-   */
-  const float *inputs[4];
-  std::size_t i;
-  for (i = 0; i < (overhang + (kBatch / 4) - 1) / (kBatch / 4); ++i) {
-    inputs[i] = &input[fast_end + i * (kBatch / 4)];
-  }
-  /* These will be clipped off. */
-  for (; i < 4; ++i) {
-    inputs[i] = &input[fast_end];
-  }
-  auto result =
-      QuantizeTile8::Tile(q, inputs[0], inputs[1], inputs[2], inputs[3]);
-  std::memcpy(output + (size & ~(kBatch - 1)), &result, overhang);
-}
-
-template <class Arch, typename IntegerTy>
-inline void SelectColumnsOfB(const xsimd::batch<int8_t, Arch> *input,
-                             xsimd::batch<int8_t, Arch> *output,
-                             size_t rows_bytes /* number of bytes in a row */,
-                             const IntegerTy *cols_begin,
-                             const IntegerTy *cols_end) {
-  using batch8 = xsimd::batch<int8_t, Arch>;
-  /* Do columns for multiples of 8.*/
-  size_t register_rows = rows_bytes / batch8::size;
-  const batch8 *starts[8];
-  for (; cols_begin != cols_end; cols_begin += 8) {
-    for (size_t k = 0; k < 8; ++k) {
-      starts[k] =
-          input + (cols_begin[k] & 7) + (cols_begin[k] & ~7) * register_rows;
-    }
-    for (size_t r = 0; r < register_rows; ++r) {
-      for (size_t k = 0; k < 8; ++k) {
-        *(output++) = *starts[k];
-        starts[k] += 8;
-      }
-    }
-  }
-}
-
-template <class Arch = xsimd::default_arch, typename IntegerTy>
-inline void SelectColumnsB(const int8_t *input, int8_t *output, size_t rows,
-                           const IntegerTy *cols_begin,
-                           const IntegerTy *cols_end) {
-  using batch8 = xsimd::batch<int8_t, Arch>;
-  SelectColumnsOfB(reinterpret_cast<const batch8 *>(input),
-                   reinterpret_cast<batch8 *>(output), rows, cols_begin,
-                   cols_end);
-}
-
 template <class Arch>
 inline void Transpose16InLane(
     xsimd::batch<int8_t, Arch> &r0, xsimd::batch<int8_t, Arch> &r1,
@@ -1128,8 +914,175 @@ inline void Transpose16InLane(
   std::swap(r3, r6);
 }
 
-template <class Arch = xsimd::default_arch>
-static inline void PrepareBTransposed(const float *input, int8_t *output,
+template <class Arch, typename IntegerTy>
+void SelectColumnsOfB(const xsimd::batch<int8_t, Arch> *input,
+                      xsimd::batch<int8_t, Arch> *output,
+                      size_t rows_bytes /* number of bytes in a row */,
+                      const IntegerTy *cols_begin, const IntegerTy *cols_end) {
+  using batch8 = xsimd::batch<int8_t, Arch>;
+  /* Do columns for multiples of 8.*/
+  size_t register_rows = rows_bytes / batch8::size;
+  const batch8 *starts[8];
+  for (; cols_begin != cols_end; cols_begin += 8) {
+    for (size_t k = 0; k < 8; ++k) {
+      starts[k] =
+          input + (cols_begin[k] & 7) + (cols_begin[k] & ~7) * register_rows;
+    }
+    for (size_t r = 0; r < register_rows; ++r) {
+      for (size_t k = 0; k < 8; ++k) {
+        *(output++) = *starts[k];
+        starts[k] += 8;
+      }
+    }
+  }
+}
+
+} // namespace
+
+namespace callbacks {
+template <class Arch>
+auto Unquantize::operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t,
+                            size_t) {
+  return xsimd::batch_cast<float>(total) * unquant_mult;
+}
+
+template <class Arch>
+auto Unquantize::operator()(
+    std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>> total,
+    size_t, size_t, size_t) {
+  return std::make_tuple(
+      xsimd::batch_cast<float>(std::get<0>(total)) * unquant_mult,
+      xsimd::batch_cast<float>(std::get<1>(total)) * unquant_mult);
+}
+
+template <class Arch>
+auto AddBias::operator()(xsimd::batch<float, Arch> total, size_t,
+                         size_t col_idx, size_t) {
+  return total + xsimd::batch<float, Arch>::load_aligned(bias_addr + col_idx);
+}
+
+template <class Arch>
+auto AddBias::operator()(
+    std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> total,
+    size_t, size_t col_idx, size_t) {
+  return std::make_tuple(
+      std::get<0>(total) + xsimd::load_aligned(bias_addr + col_idx + 0),
+      std::get<1>(total) +
+          xsimd::load_aligned(bias_addr + col_idx +
+                              xsimd::batch<float, Arch>::size));
+}
+
+template <class Arch>
+void Write::operator()(xsimd::batch<float, Arch> result, size_t row_idx,
+                       size_t col_idx, size_t col_size) {
+  result.store_aligned(output_addr + row_idx * col_size + col_idx);
+}
+
+template <class Arch>
+void Write::operator()(xsimd::batch<int32_t, Arch> result, size_t row_idx,
+                       size_t col_idx, size_t col_size) {
+  xsimd::bitwise_cast<float>(result).store_aligned(
+      output_addr + row_idx * col_size + col_idx);
+}
+
+template <class Arch>
+void Write::operator()(
+    std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> result,
+    size_t row_idx, size_t col_idx, size_t col_size) {
+  std::get<0>(result).store_aligned(output_addr + row_idx * col_size + col_idx +
+                                    0);
+  std::get<1>(result).store_aligned(output_addr + row_idx * col_size + col_idx +
+                                    xsimd::batch<float, Arch>::size);
+}
+
+template <class Arch>
+void Write::operator()(
+    std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>> result,
+    size_t row_idx, size_t col_idx, size_t col_size) {
+  xsimd::bitwise_cast<float>(std::get<0>(result))
+      .store_aligned(output_addr + row_idx * col_size + col_idx + 0);
+  xsimd::bitwise_cast<float>(std::get<1>(result))
+      .store_aligned(output_addr + row_idx * col_size + col_idx +
+                     xsimd::batch<int32_t, Arch>::size);
+}
+
+template <class T>
+void UnquantizeAndWrite::operator()(T const &total, size_t row_idx,
+                                    size_t col_idx, size_t col_size) {
+  auto unquantized = unquantize(total, row_idx, col_idx, col_size);
+  write(unquantized, row_idx, col_idx, col_size);
+}
+
+template <class T>
+void UnquantizeAndAddBiasAndWrite::operator()(T const &total, size_t row_idx,
+                                              size_t col_idx, size_t col_size) {
+  auto unquantized = unquantize(total, row_idx, col_idx, col_size);
+  auto bias_added = add_bias(unquantized, row_idx, col_idx, col_size);
+  write(bias_added, row_idx, col_idx, col_size);
+}
+} // namespace callbacks
+
+template <class Arch>
+void Engine<Arch>::QuantizeU(const float *input, uint8_t *output,
+                             float quant_mult, size_t size) {
+  using batch8 = xsimd::batch<int8_t, Arch>;
+
+  xsimd::batch<float, Arch> q(quant_mult);
+  const float *end = input + size;
+  for (; input != end; input += batch8::size, output += batch8::size) {
+    auto tile = QuantizeTile8::ConsecutiveU(q, input);
+    tile.store_aligned(output);
+  }
+}
+
+template <class Arch>
+void Engine<Arch>::Quantize(const float *const input, int8_t *const output,
+                            float quant_mult, size_t size) {
+  using batch8 = xsimd::batch<int8_t, Arch>;
+
+  const std::size_t kBatch = batch8::size;
+  const std::size_t fast_end = size & ~(kBatch - 1);
+
+  xsimd::batch<float, Arch> q(quant_mult);
+  for (std::size_t i = 0; i < fast_end; i += kBatch) {
+    auto tile = QuantizeTile8::Consecutive(q, input + i);
+    tile.store_aligned(output + i);
+  }
+
+  std::size_t overhang = size & (kBatch - 1);
+  if (!overhang)
+    return;
+  /* Each does size(xsimd::batch<int8_t, Arch>) / 32 == kBatch / 4 floats at a
+   * time. If we're allowed to read one of them, then we can read the whole
+   * register.
+   */
+  const float *inputs[4];
+  std::size_t i;
+  for (i = 0; i < (overhang + (kBatch / 4) - 1) / (kBatch / 4); ++i) {
+    inputs[i] = &input[fast_end + i * (kBatch / 4)];
+  }
+  /* These will be clipped off. */
+  for (; i < 4; ++i) {
+    inputs[i] = &input[fast_end];
+  }
+  auto result =
+      QuantizeTile8::Tile(q, inputs[0], inputs[1], inputs[2], inputs[3]);
+  std::memcpy(output + (size & ~(kBatch - 1)), &result, overhang);
+}
+
+template <class Arch>
+template <typename IntegerTy>
+void Engine<Arch>::SelectColumnsB(const int8_t *input, int8_t *output,
+                                  size_t rows, const IntegerTy *cols_begin,
+                                  const IntegerTy *cols_end) {
+  using batch8 = xsimd::batch<int8_t, Arch>;
+  SelectColumnsOfB(reinterpret_cast<const batch8 *>(input),
+                   reinterpret_cast<batch8 *>(output), rows, cols_begin,
+                   cols_end);
+}
+
+template <class Arch>
+void Engine<Arch>::PrepareBTransposed(const float *input, int8_t *output,
                                       float quant_mult, size_t cols,
                                       size_t rows) {
   using batch8 = xsimd::batch<int8_t, Arch>;
@@ -1152,9 +1105,10 @@ static inline void PrepareBTransposed(const float *input, int8_t *output,
   }
 }
 
-template <class Arch = xsimd::default_arch>
-inline void PrepareBQuantizedTransposed(const int8_t *input, int8_t *output,
-                                        size_t cols, size_t rows) {
+template <class Arch>
+void Engine<Arch>::PrepareBQuantizedTransposed(const int8_t *input,
+                                               int8_t *output, size_t cols,
+                                               size_t rows) {
   using batch8 = xsimd::batch<int8_t, Arch>;
   const size_t RegisterElems = batch8::size;
   const size_t kColStride = 8;
@@ -1167,9 +1121,9 @@ inline void PrepareBQuantizedTransposed(const int8_t *input, int8_t *output,
             *reinterpret_cast<const batch8 *>(input + (r + ri) * cols + c);
 }
 
-template <class Arch = xsimd::default_arch>
-inline void PrepareB(const float *input, int8_t *output_shadow,
-                     float quant_mult, size_t rows, size_t cols) {
+template <class Arch>
+void Engine<Arch>::PrepareB(const float *input, int8_t *output_shadow,
+                            float quant_mult, size_t rows, size_t cols) {
   using batch8 = xsimd::batch<int8_t, Arch>;
 
   xsimd::batch<float, Arch> q(quant_mult);
@@ -1212,23 +1166,23 @@ inline void PrepareB(const float *input, int8_t *output_shadow,
   }
 }
 
-template <class Arch = xsimd::default_arch>
-inline void PrepareA(const float *input, int8_t *output, float quant_mult,
-                     size_t rows, size_t cols) {
-  Quantize<Arch>(input, output, quant_mult, rows * cols);
+template <class Arch>
+void Engine<Arch>::PrepareA(const float *input, int8_t *output,
+                            float quant_mult, size_t rows, size_t cols) {
+  Quantize(input, output, quant_mult, rows * cols);
 }
 
-namespace Shift {
-
-template <class Arch = xsimd::default_arch>
-inline void PrepareA(const float *input, uint8_t *output, float quant_mult,
-                     size_t rows, size_t cols) {
-  QuantizeU<Arch>(input, output, quant_mult, rows * cols);
+template <class Arch>
+void Engine<Arch>::Shift::PrepareA(const float *input, uint8_t *output,
+                                   float quant_mult, size_t rows, size_t cols) {
+  QuantizeU(input, output, quant_mult, rows * cols);
 }
 
-template <class Arch = xsimd::default_arch, class Callback>
-static void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
-                     size_t width, size_t B_cols, Callback callback) {
+template <class Arch>
+template <class Callback>
+void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
+                                   size_t A_rows, size_t width, size_t B_cols,
+                                   Callback callback) {
 
   using batch8 = xsimd::batch<int8_t, Arch>;
   using ubatch8 = xsimd::batch<uint8_t, Arch>;
@@ -1307,8 +1261,10 @@ static void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
   }
 }
 
-template <class Arch = xsimd::default_arch, class Callback>
-void PrepareBias(const int8_t *B, size_t width, size_t B_cols, Callback C) {
+template <class Arch>
+template <class Callback>
+void Engine<Arch>::Shift::PrepareBias(const int8_t *B, size_t width,
+                                      size_t B_cols, Callback C) {
   using batch8 = xsimd::batch<int8_t, Arch>;
   using batch16 = xsimd::batch<int16_t, Arch>;
   const size_t simd_width = width / batch8::size;
@@ -1371,8 +1327,6 @@ void PrepareBias(const int8_t *B, size_t width, size_t B_cols, Callback C) {
     C(total, 0, j, B_cols);
   }
 }
-
-} // namespace Shift
 
 } // namespace gemmology
 
