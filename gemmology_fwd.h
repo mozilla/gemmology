@@ -26,9 +26,9 @@ namespace callbacks {
 struct Unquantize {
   float unquant_mult;
   template <class Arch>
-  auto operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t, size_t);
+  xsimd::batch<float, Arch> operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t, size_t);
   template <class Arch>
-  auto operator()(
+  std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> operator()(
       std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
           total,
       size_t, size_t, size_t);
@@ -37,10 +37,11 @@ struct Unquantize {
 struct AddBias {
   const float *bias_addr;
   template <class Arch>
-  auto operator()(xsimd::batch<float, Arch> total, size_t, size_t col_idx,
+  xsimd::batch<float, Arch> operator()(xsimd::batch<float, Arch> total, size_t, size_t col_idx,
                   size_t);
   template <class Arch>
-  auto operator()(
+  std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>>
+  operator()(
       std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> total,
       size_t, size_t col_idx, size_t);
 };
