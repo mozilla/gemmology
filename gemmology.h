@@ -942,13 +942,13 @@ void SelectColumnsOfB(const xsimd::batch<int8_t, Arch> *input,
 
 namespace callbacks {
 template <class Arch>
-auto Unquantize::operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t,
+xsimd::batch<float, Arch> Unquantize::operator()(xsimd::batch<int32_t, Arch> total, size_t, size_t,
                             size_t) {
   return xsimd::batch_cast<float>(total) * unquant_mult;
 }
 
 template <class Arch>
-auto Unquantize::operator()(
+std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> Unquantize::operator()(
     std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>> total,
     size_t, size_t, size_t) {
   return std::make_tuple(
@@ -957,13 +957,14 @@ auto Unquantize::operator()(
 }
 
 template <class Arch>
-auto AddBias::operator()(xsimd::batch<float, Arch> total, size_t,
+xsimd::batch<float, Arch> AddBias::operator()(xsimd::batch<float, Arch> total, size_t,
                          size_t col_idx, size_t) {
   return total + xsimd::batch<float, Arch>::load_aligned(bias_addr + col_idx);
 }
 
 template <class Arch>
-auto AddBias::operator()(
+std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>>
+AddBias::operator()(
     std::tuple<xsimd::batch<float, Arch>, xsimd::batch<float, Arch>> total,
     size_t, size_t col_idx, size_t) {
   return std::make_tuple(
