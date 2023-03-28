@@ -607,10 +607,11 @@ inline auto PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
   return kernel::PermuteSummer(pack0123, pack4567, Arch{});
 }
 
-inline xsimd::batch<int32_t> Pack0123(xsimd::batch<int32_t> sum0,
-                                      xsimd::batch<int32_t> sum1,
-                                      xsimd::batch<int32_t> sum2,
-                                      xsimd::batch<int32_t> sum3) {
+template <class Arch>
+inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
+                                      xsimd::batch<int32_t, Arch> sum1,
+                                      xsimd::batch<int32_t, Arch> sum2,
+                                      xsimd::batch<int32_t, Arch> sum3) {
   std::tie(sum0, sum1) = interleave(sum0, sum1);
   auto pack01 = sum0 + sum1;
   std::tie(sum2, sum3) = interleave(sum2, sum3);
