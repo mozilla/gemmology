@@ -534,8 +534,7 @@ inline xsimd::batch<int32_t, Arch>
 madd(xsimd::batch<int16_t, Arch> x, xsimd::batch<int16_t, Arch> y,
      xsimd::kernel::requires_arch<xsimd::neon64>) {
   int32x4_t low = vmull_s16(vget_low_s16(x), vget_low_s16(y));
-  int32x4_t high = vmull_high_s16(x, y);
-  return vpaddq_s32(low, high);
+  return vmlal_high_s16(low, x, y);
 }
 
 template <class Arch>
@@ -555,8 +554,7 @@ inline xsimd::batch<int16_t, Arch>
 madd(xsimd::batch<int8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
      xsimd::kernel::requires_arch<xsimd::neon64>) {
   int16x8_t low = vmull_s8(vget_low_s8(x), vget_low_s8(y));
-  int16x8_t high = vmull_high_s8(x, y);
-  return vpaddq_s16(low, high);
+  return vmlal_high_s8(low, x, y);
 }
 
 #endif
