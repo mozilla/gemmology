@@ -66,11 +66,11 @@ test_quantize.avxvnni:test_quantize.cpp Makefile ../gemmology.h
 	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
 
 check.avxvnni:test_prepare_b_transposed.avxvnni test_prepare_b_quantized_transposed.avxvnni test_multiply.avxvnni test_quantize.avxvnni test_transpose.avxvnni
-	$(SDE64) -skx -- ./test_transpose.avxvnni
-	$(SDE64) -skx -- ./test_prepare_b_transposed.avxvnni
-	$(SDE64) -skx -- ./test_prepare_b_quantized_transposed.avxvnni
-	$(SDE64) -skx -- ./test_quantize.avxvnni
-	$(SDE64) -skx -- ./test_multiply.avxvnni
+	$(SDE64) -adl -- ./test_transpose.avxvnni
+	$(SDE64) -adl -- ./test_prepare_b_transposed.avxvnni
+	$(SDE64) -adl -- ./test_prepare_b_quantized_transposed.avxvnni
+	$(SDE64) -adl -- ./test_quantize.avxvnni
+	$(SDE64) -adl -- ./test_multiply.avxvnni
 
 clean.avxvnni:
 	$(RM) test_prepare_b_transposed.avxvnni test_prepare_b_quantized_transposed.avxvnni test_multiply.avxvnni test_quantize.avxvnni test_transpose.avxvnni
