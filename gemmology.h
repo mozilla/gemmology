@@ -573,7 +573,7 @@ maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
                            vmovl_s8(vget_high_s8(y)));
   int32x4_t pl = vpaddlq_s16(tl);
   int32x4_t ph = vpaddlq_s16(th);
-  return z + vpaddq_s32(pl, ph);
+  return vpaddq_s32(z, vpaddq_s32(pl, ph));
 }
 
 template <class Arch>
