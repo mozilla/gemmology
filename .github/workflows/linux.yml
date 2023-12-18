@@ -9,11 +9,25 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: '${{ matrix.sys.compiler }}'
+    strategy:
+      matrix:
+        sys:
+          - { compiler: 'g++'}
+          - { compiler: 'clang++'}
     steps:
-    - name: Setup compiler
+    - name: Setup GCC
+      if: ${{ matrix.sys.compiler == 'g++' }}
       run: |
         sudo apt-get update
         sudo apt-get --no-install-suggests --no-install-recommends install g++
+        sudo apt-get --no-install-suggests --no-install-recommends install g++-arm-linux-gnueabihf qemu-user
+        sudo apt-get --no-install-suggests --no-install-recommends install g++-aarch64-linux-gnu qemu-user
+    - name: Setup Clang
+      if: ${{ matrix.sys.compiler == 'clang++' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get --no-install-suggests --no-install-recommends install clang++
         sudo apt-get --no-install-suggests --no-install-recommends install g++-arm-linux-gnueabihf qemu-user
         sudo apt-get --no-install-suggests --no-install-recommends install g++-aarch64-linux-gnu qemu-user
     - name: Checkout gemmology
@@ -25,5 +39,11 @@ jobs:
         path: xsimd
     - name: Setup SDE
       run: sh .github/workflows/install_sde.sh
-    - name: Check
-      run: make -C test SDE64=../sde-external-9.21.1-2023-04-24-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Wno-psabi\ -Werror -j ARM_CXX=arm-linux-gnueabihf-g++ ARM_QEMU=qemu-arm\ -L\ /usr/arm-linux-gnueabihf ARM64_CXX=aarch64-linux-gnu-g++ ARM64_QEMU=qemu-aarch64\ -L\ /usr/aarch64-linux-gnu
+
+    - name: Check GCC
+      if: ${{ matrix.sys.compiler == 'g++' }}
+      run: make -C test CXX=${{ matrix.sys.compiler }} SDE64=../sde-external-9.21.1-2023-04-24-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Wno-psabi\ -Werror -j ARM_CXX=arm-linux-gnueabihf-g++ ARM_QEMU=qemu-arm\ -L\ /usr/arm-linux-gnueabihf ARM64_CXX=aarch64-linux-gnu-g++ ARM64_QEMU=qemu-aarch64\ -L\ /usr/aarch64-linux-gnu
+
+    - name: Check Clang
+      if: ${{ matrix.sys.compiler == 'clang++' }}
+      run: make -C test CXX=${{ matrix.sys.compiler }} SDE64=../sde-external-9.21.1-2023-04-24-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Wno-psabi\ -Werror -j
