@@ -19,9 +19,36 @@ GEMMOLOGY_CXXFLAGS= -std=c++17 $(CXXFLAGS)
 
 all:check
 
-check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.neon check.neon64
+check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.avx512vnni check.neon check.neon64
 
-clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.neon clean.neon64
+clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64
+
+# AVX512VNNI
+test_transpose.avx512vnni: test_transpose.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+
+test_prepare_b_transposed.avx512vnni: test_prepare_b_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+
+test_prepare_b_quantized_transposed.avx512vnni: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+
+test_multiply.avx512vnni:test_multiply.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+
+test_quantize.avx512vnni:test_quantize.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+
+check.avx512vnni:test_prepare_b_transposed.avx512vnni test_prepare_b_quantized_transposed.avx512vnni test_multiply.avx512vnni test_quantize.avx512vnni test_transpose.avx512vnni
+	$(SDE64) -icx -- ./test_transpose.avx512vnni
+	$(SDE64) -icx -- ./test_prepare_b_transposed.avx512vnni
+	$(SDE64) -icx -- ./test_prepare_b_quantized_transposed.avx512vnni
+	$(SDE64) -icx -- ./test_quantize.avx512vnni
+	$(SDE64) -icx -- ./test_multiply.avx512vnni
+
+clean.avx512vnni:
+	$(RM) test_prepare_b_transposed.avx512vnni test_prepare_b_quantized_transposed.avx512vnni test_multiply.avx512vnni test_quantize.avx512vnni test_transpose.avx512
+
 
 # AVX512
 test_transpose.avx512: test_transpose.cpp ../gemmology.h Makefile
