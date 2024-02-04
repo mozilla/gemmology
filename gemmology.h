@@ -554,10 +554,9 @@ inline xsimd::batch<int16_t, Arch>
 madd(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
      xsimd::kernel::requires_arch<xsimd::neon64>) {
 
-  int16x8_t tl = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(x))),
-                           vmovl_s8(vget_low_s8(y)));
-  int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(x))),
-                           vmovl_s8(vget_high_s8(y)));
+  int16x8_t tl = vmull_s8(vreinterpret_s8_u8(vget_low_u8(x)),
+                          vget_low_s8(y));
+  int16x8_t th = vmull_high_s8(vreinterpretq_s8_u8(x), y);
   return vqaddq_s16(vuzp1q_s16(tl, th), vuzp2q_s16(tl, th));
 }
 
