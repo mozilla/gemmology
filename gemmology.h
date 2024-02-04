@@ -566,14 +566,12 @@ inline xsimd::batch<int32_t, Arch>
 maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
       xsimd::batch<int32_t, Arch> z,
       xsimd::kernel::requires_arch<xsimd::neon64>) {
-
   int16x8_t tl = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(x))),
                            vmovl_s8(vget_low_s8(y)));
   int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(x))),
                            vmovl_s8(vget_high_s8(y)));
-  int32x4_t pl = vpaddlq_s16(tl);
-  int32x4_t ph = vpaddlq_s16(th);
-  return vpaddq_s32(z, vpaddq_s32(pl, ph));
+  return vpadalq_s16(vpadalq_s16(z, tl), th);
+  //TODO: investigate using vdotq_s32
 }
 
 template <class Arch>
