@@ -233,7 +233,7 @@ template <class Arch>
 std::tuple<xsimd::batch<int8_t, Arch>, xsimd::batch<int8_t, Arch>>
 interleave(xsimd::batch<int8_t, Arch> first, xsimd::batch<int8_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::sse2>) {
-  return {_mm_unpacklo_epi8(first, second), _mm_unpackhi_epi8(first, second)};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -241,7 +241,7 @@ std::tuple<xsimd::batch<int16_t, Arch>, xsimd::batch<int16_t, Arch>>
 interleave(xsimd::batch<int16_t, Arch> first,
            xsimd::batch<int16_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::sse2>) {
-  return {_mm_unpacklo_epi16(first, second), _mm_unpackhi_epi16(first, second)};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -249,7 +249,7 @@ std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
 interleave(xsimd::batch<int32_t, Arch> first,
            xsimd::batch<int32_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::sse2>) {
-  return {_mm_unpacklo_epi32(first, second), _mm_unpackhi_epi32(first, second)};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -257,7 +257,7 @@ std::tuple<xsimd::batch<int64_t, Arch>, xsimd::batch<int64_t, Arch>>
 interleave(xsimd::batch<int64_t, Arch> first,
            xsimd::batch<int64_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::sse2>) {
-  return {_mm_unpacklo_epi64(first, second), _mm_unpackhi_epi64(first, second)};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -362,14 +362,7 @@ template <class Arch>
 std::tuple<xsimd::batch<int8_t, Arch>, xsimd::batch<int8_t, Arch>>
 interleave(xsimd::batch<int8_t, Arch> first, xsimd::batch<int8_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::neon>) {
-  int8x8_t first_lo = vget_low_s8(first);
-  int8x8_t second_lo = vget_low_s8(second);
-  int8x8x2_t result_lo = vzip_s8(first_lo, second_lo);
-  int8x8_t first_hi = vget_high_s8(first);
-  int8x8_t second_hi = vget_high_s8(second);
-  int8x8x2_t result_hi = vzip_s8(first_hi, second_hi);
-  return {vcombine_s8(result_lo.val[0], result_lo.val[1]),
-          vcombine_s8(result_hi.val[0], result_hi.val[1])};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -377,14 +370,7 @@ std::tuple<xsimd::batch<int16_t, Arch>, xsimd::batch<int16_t, Arch>>
 interleave(xsimd::batch<int16_t, Arch> first,
            xsimd::batch<int16_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::neon>) {
-  int16x4_t first_lo = vget_low_s16(first);
-  int16x4_t second_lo = vget_low_s16(second);
-  int16x4x2_t result_lo = vzip_s16(first_lo, second_lo);
-  int16x4_t first_hi = vget_high_s16(first);
-  int16x4_t second_hi = vget_high_s16(second);
-  int16x4x2_t result_hi = vzip_s16(first_hi, second_hi);
-  return {vcombine_s16(result_lo.val[0], result_lo.val[1]),
-          vcombine_s16(result_hi.val[0], result_hi.val[1])};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -392,14 +378,7 @@ std::tuple<xsimd::batch<int32_t, Arch>, xsimd::batch<int32_t, Arch>>
 interleave(xsimd::batch<int32_t, Arch> first,
            xsimd::batch<int32_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::neon>) {
-  int32x2_t first_lo = vget_low_s32(first);
-  int32x2_t second_lo = vget_low_s32(second);
-  int32x2x2_t result_lo = vzip_s32(first_lo, second_lo);
-  int32x2_t first_hi = vget_high_s32(first);
-  int32x2_t second_hi = vget_high_s32(second);
-  int32x2x2_t result_hi = vzip_s32(first_hi, second_hi);
-  return {vcombine_s32(result_lo.val[0], result_lo.val[1]),
-          vcombine_s32(result_hi.val[0], result_hi.val[1])};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
@@ -407,11 +386,7 @@ std::tuple<xsimd::batch<int64_t, Arch>, xsimd::batch<int64_t, Arch>>
 interleave(xsimd::batch<int64_t, Arch> first,
            xsimd::batch<int64_t, Arch> second,
            xsimd::kernel::requires_arch<xsimd::neon>) {
-  int64x1_t first_lo = vget_low_s64(first);
-  int64x1_t second_lo = vget_low_s64(second);
-  int64x1_t first_hi = vget_high_s64(first);
-  int64x1_t second_hi = vget_high_s64(second);
-  return {vcombine_s64(first_lo, second_lo), vcombine_s64(first_hi, second_hi)};
+  return {xsimd::zip_lo(first, second), xsimd::zip_hi(first, second)};
 }
 
 template <class Arch>
