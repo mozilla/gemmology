@@ -198,6 +198,17 @@ PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
   return _mm256_add_epi32(rev, blended);
 }
 
+template <class Arch>
+inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
+                                      xsimd::batch<int32_t, Arch> sum1,
+                                      xsimd::batch<int32_t, Arch> sum2,
+                                      xsimd::batch<int32_t, Arch> sum3,
+                                      xsimd::kernel::requires_arch<xsimd::avx2>) {
+  auto pack01 = _mm256_hadd_epi32(sum0, sum1);
+  auto pack23 = _mm256_hadd_epi32(sum2, sum3);
+  return _mm256_hadd_epi32(pack01, pack23);
+}
+
 #ifdef __AVXVNNI__
 
 template <class Arch>
@@ -244,6 +255,17 @@ inline xsimd::batch<int16_t, Arch>
 madd(xsimd::batch<int8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
      xsimd::kernel::requires_arch<xsimd::ssse3>) {
   return _mm_maddubs_epi16(xsimd::abs(x), _mm_sign_epi8(y, x));
+}
+
+template <class Arch>
+inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
+                                      xsimd::batch<int32_t, Arch> sum1,
+                                      xsimd::batch<int32_t, Arch> sum2,
+                                      xsimd::batch<int32_t, Arch> sum3,
+                                      xsimd::kernel::requires_arch<xsimd::ssse3>) {
+  auto pack01 = _mm_hadd_epi32(sum0, sum1);
+  auto pack23 = _mm_hadd_epi32(sum2, sum3);
+  return _mm_hadd_epi32(pack01, pack23);
 }
 #endif
 
@@ -564,15 +586,17 @@ maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
   int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(x))),
                            vmovl_s8(vget_high_s8(y)));
   return vpadalq_s16(vpadalq_s16(z, tl), th);
-  //TODO: investigate using vdotq_s32
 }
 
 template <class Arch>
-inline xsimd::batch<int16_t, Arch>
-madd(xsimd::batch<int8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
-     xsimd::kernel::requires_arch<xsimd::neon64>) {
-  int16x8_t low = vmull_s8(vget_low_s8(x), vget_low_s8(y));
-  return vmlal_high_s8(low, x, y);
+inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
+                                      xsimd::batch<int32_t, Arch> sum1,
+                                      xsimd::batch<int32_t, Arch> sum2,
+                                      xsimd::batch<int32_t, Arch> sum3,
+                                      xsimd::kernel::requires_arch<xsimd::neon64>) {
+  auto pack01 = vpaddq_s32(sum0, sum1);
+  auto pack23 = vpaddq_s32(sum2, sum3);
+  return vpaddq_s32(pack01, pack23);
 }
 
 #endif
@@ -644,20 +668,35 @@ inline auto PermuteSummer(xsimd::batch<int32_t, Arch> pack0123,
   return kernel::PermuteSummer(pack0123, pack4567, Arch{});
 }
 
+
+namespace kernel {
+
+  template <class Arch>
+  inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
+                                        xsimd::batch<int32_t, Arch> sum1,
+                                        xsimd::batch<int32_t, Arch> sum2,
+                                        xsimd::batch<int32_t, Arch> sum3,
+                                        xsimd::kernel::requires_arch<xsimd::generic>) {
+
+    std::tie(sum0, sum1) = interleave(sum0, sum1, Arch{});
+    auto pack01 = sum0 + sum1;
+    std::tie(sum2, sum3) = interleave(sum2, sum3, Arch{});
+    auto pack23 = sum2 + sum3;
+
+    auto packed = interleave(xsimd::bitwise_cast<int64_t>(pack01),
+                             xsimd::bitwise_cast<int64_t>(pack23),
+                             Arch{});
+    return xsimd::bitwise_cast<int32_t>(std::get<0>(packed)) +
+           xsimd::bitwise_cast<int32_t>(std::get<1>(packed));
+  }
+}
+
 template <class Arch>
 inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
                                       xsimd::batch<int32_t, Arch> sum1,
                                       xsimd::batch<int32_t, Arch> sum2,
                                       xsimd::batch<int32_t, Arch> sum3) {
-  std::tie(sum0, sum1) = interleave(sum0, sum1);
-  auto pack01 = sum0 + sum1;
-  std::tie(sum2, sum3) = interleave(sum2, sum3);
-  auto pack23 = sum2 + sum3;
-
-  auto packed = interleave(xsimd::bitwise_cast<int64_t>(pack01),
-                           xsimd::bitwise_cast<int64_t>(pack23));
-  return xsimd::bitwise_cast<int32_t>(std::get<0>(packed)) +
-         xsimd::bitwise_cast<int32_t>(std::get<1>(packed));
+  return kernel::Pack0123(sum0, sum1, sum2, sum3, Arch{});
 }
 
 template <class Arch>
