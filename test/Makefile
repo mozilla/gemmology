@@ -19,9 +19,9 @@ GEMMOLOGY_CXXFLAGS= -std=c++17 $(CXXFLAGS)
 
 all:check
 
-check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.avx512vnni check.neon check.neon64
+check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.avx512vnni check.neon check.neon64 check.neon64+i8mm
 
-clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64
+clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64 check.neon64+i8mm
 
 # AVX512VNNI
 test_transpose.avx512vnni: test_transpose.cpp ../gemmology.h Makefile
@@ -250,3 +250,25 @@ check.neon64:test_prepare_b_transposed.neon64 test_prepare_b_quantized_transpose
 
 clean.neon64:
 	$(RM) test_prepare_b_transposed.neon64 test_prepare_b_quantized_transposed.neon64 test_multiply.neon64 test_quantize.neon64 test_transpose.neon64
+
+# Neon64+i8mm
+test_prepare_b_transposed.neon64+i8mm: test_prepare_b_transposed.cpp ../gemmology.h Makefile
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+
+test_prepare_b_quantized_transposed.neon64+i8mm: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+
+test_multiply.neon64+i8mm:test_multiply.cpp Makefile ../gemmology.h
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+
+test_quantize.neon64+i8mm:test_quantize.cpp Makefile ../gemmology.h
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+
+check.neon64+i8mm:test_prepare_b_transposed.neon64+i8mm test_prepare_b_quantized_transposed.neon64+i8mm test_multiply.neon64+i8mm test_quantize.neon64+i8mm
+	$(ARM64_QEMU) ./test_prepare_b_transposed.neon64+i8mm
+	$(ARM64_QEMU) ./test_prepare_b_quantized_transposed.neon64+i8mm
+	$(ARM64_QEMU) ./test_quantize.neon64+i8mm
+	$(ARM64_QEMU) ./test_multiply.neon64+i8mm
+
+clean.neon64+i8mm:
+	$(RM) test_prepare_b_transposed.neon64+i8mm test_prepare_b_quantized_transposed.neon64+i8mm test_multiply.neon64+i8mm test_quantize.neon64+i8mm test_transpose.neon64+i8mm

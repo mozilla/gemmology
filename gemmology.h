@@ -558,24 +558,15 @@ deinterleave(xsimd::batch<int32_t, Arch> first,
   return vqmovn_high_s32(vqmovn_s32(first), second);
 }
 
+#ifdef __ARM_FEATURE_MATMUL_INT8
 template <class Arch>
 inline xsimd::batch<int32_t, Arch>
-madd(xsimd::batch<int16_t, Arch> x, xsimd::batch<int16_t, Arch> y,
-     xsimd::kernel::requires_arch<xsimd::neon64>) {
-  int32x4_t low = vmull_s16(vget_low_s16(x), vget_low_s16(y));
-  return vmlal_high_s16(low, x, y);
+maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+      xsimd::batch<int32_t, Arch> z,
+      xsimd::kernel::requires_arch<xsimd::i8mm<xsimd::neon64>>) {
+  return vusdotq_s32(z, x, y);
 }
-
-template <class Arch>
-inline xsimd::batch<int16_t, Arch>
-madd(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
-     xsimd::kernel::requires_arch<xsimd::neon64>) {
-
-  int16x8_t tl = vmull_s8(vreinterpret_s8_u8(vget_low_u8(x)),
-                          vget_low_s8(y));
-  int16x8_t th = vmull_high_s8(vreinterpretq_s8_u8(x), y);
-  return vqaddq_s16(vuzp1q_s16(tl, th), vuzp2q_s16(tl, th));
-}
+#endif
 
 template <class Arch>
 inline xsimd::batch<int32_t, Arch>
