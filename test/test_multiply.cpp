@@ -35,7 +35,7 @@ bool CompareEps(const Type *reference, const Type *actual, int size,
     // Ratio to maximum value.
     float threshold = epsilon * std::max<float>(0.01f, std::fabs(reference[i]));
     if (std::fabs(reference[i] - actual[i]) >= threshold) {
-      std::cerr << "mismatch\n";
+      std::cerr << "mismatch: " << reference[i]  << " vs " << actual[i]<< "\n";
       return false;
     }
   }
