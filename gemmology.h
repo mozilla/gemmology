@@ -555,7 +555,7 @@ xsimd::batch<int16_t, Arch>
 deinterleave(xsimd::batch<int32_t, Arch> first,
              xsimd::batch<int32_t, Arch> second,
              xsimd::kernel::requires_arch<xsimd::neon64>) {
-  return vcombine_s16(vqmovn_s32(first), vqmovn_s32(second));
+  return vqmovn_high_s32(vqmovn_s32(first), second);
 }
 
 template <class Arch>
