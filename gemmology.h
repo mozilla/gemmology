@@ -581,6 +581,17 @@ maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
 }
 
 template <class Arch>
+inline xsimd::batch<int32_t, Arch>
+maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+      xsimd::kernel::requires_arch<xsimd::neon64>) {
+  int16x8_t tl = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(x))),
+                           vmovl_s8(vget_low_s8(y)));
+  int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(x))),
+                           vmovl_s8(vget_high_s8(y)));
+  return vpadalq_s16(vpaddlq_s16(tl), th);
+}
+
+template <class Arch>
 inline xsimd::batch<int32_t, Arch> Pack0123(xsimd::batch<int32_t, Arch> sum0,
                                       xsimd::batch<int32_t, Arch> sum1,
                                       xsimd::batch<int32_t, Arch> sum2,
@@ -599,6 +610,13 @@ maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
       xsimd::batch<int32_t, Arch> z,
       xsimd::kernel::requires_arch<xsimd::generic>) {
   return z + madd(xsimd::batch<int16_t, Arch>(1), madd(x, y, Arch{}), Arch{});
+}
+
+template <class Arch>
+inline xsimd::batch<int32_t, Arch>
+maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
+      xsimd::kernel::requires_arch<xsimd::generic>) {
+  return maddw(x, y, xsimd::batch<int32_t, Arch>(0), Arch{});
 }
 
 } // namespace kernel
@@ -650,7 +668,7 @@ template <class Arch>
 inline xsimd::batch<int32_t, Arch> maddw(xsimd::batch<uint8_t, Arch> x,
                                          xsimd::batch<int8_t, Arch> y
                                          ) {
-  return maddw(x, y, xsimd::batch<int32_t, Arch>((int32_t)0));
+  return kernel::maddw(x, y, Arch{});
 }
 
 template <class Arch>
