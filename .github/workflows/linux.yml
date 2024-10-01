@@ -20,14 +20,12 @@ jobs:
       if: ${{ matrix.sys.compiler == 'g++' }}
       run: |
         sudo apt-get update
-        sudo apt-get --no-install-suggests --no-install-recommends install g++
         sudo apt-get --no-install-suggests --no-install-recommends install g++-arm-linux-gnueabihf qemu-user
         sudo apt-get --no-install-suggests --no-install-recommends install g++-aarch64-linux-gnu qemu-user
     - name: Setup Clang
       if: ${{ matrix.sys.compiler == 'clang++' }}
       run: |
         sudo apt-get update
-        sudo apt-get --no-install-suggests --no-install-recommends install clang++
         sudo apt-get --no-install-suggests --no-install-recommends install g++-arm-linux-gnueabihf qemu-user
         sudo apt-get --no-install-suggests --no-install-recommends install g++-aarch64-linux-gnu qemu-user
     - name: Checkout gemmology
@@ -46,4 +44,4 @@ jobs:
 
     - name: Check Clang
       if: ${{ matrix.sys.compiler == 'clang++' }}
-      run: make -C test CXX=${{ matrix.sys.compiler }} SDE64=../sde-external-9.21.1-2023-04-24-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Wno-psabi\ -Werror -j
+      run: make -C test CXX=${{ matrix.sys.compiler }} SDE64=../sde-external-9.21.1-2023-04-24-lin/sde64 XSIMD_INCLUDE_DIR=../xsimd/include CXXFLAGS=-Wall\ -Wno-psabi\ -Werror -j NOOMP=1

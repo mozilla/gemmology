@@ -308,9 +308,17 @@ bool TestMultiplyShiftInt(int A_rows, int width, int B_cols,
       B_prep, width, B_cols,
       gemmology::callbacks::UnquantizeAndAddBiasAndWrite(unquant_mult_forprep,
                                                          bias, bias));
+#if defined(_OPENMP)
+  gemmology::OpenMPExecutionEngine engine;
+#elif defined(GEMMOLOGY_WITH_STD_THREAD)
+  gemmology::StdThreadExecutionEngine engine(4);
+#else
+  gemmology::SequentialExecutionEngine engine;
+#endif
+
   gemmology::Shift::Multiply(A_prep, B_prep, A_rows, width, B_cols,
                              gemmology::callbacks::UnquantizeAndAddBiasAndWrite(
-                                 unquant_mult, bias, test_C));
+                                 unquant_mult, bias, test_C), engine);
 
   // Reference INT VERSION HERE with ADD127
   // Taking the original A_preparation which means A would be int8_t

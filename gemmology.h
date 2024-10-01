@@ -7,6 +7,11 @@
 #include <cstring>
 #include <tuple>
 
+#ifdef GEMMOLOGY_WITH_STD_THREAD
+#include <thread>
+#include <vector>
+#endif
+
 #include <xsimd/xsimd.hpp>
 
 namespace gemmology {
@@ -1245,18 +1250,29 @@ void Engine<Arch>::Shift::PrepareA(const float *input, uint8_t *output,
   QuantizeU(input, output, quant_mult, rows * cols);
 }
 
+struct SequentialExecutionEngine {
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+    for(size_t i = Start; i < End; i += Stride) {
+      f(i);
+    }
+  }
+
+};
+
 template <class Arch>
-template <class Callback>
+template <class Callback, class ExecutionEngine>
 void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
                                    size_t A_rows, size_t width, size_t B_cols,
-                                   Callback callback) {
+                                   Callback callback, ExecutionEngine& engine) {
 
   using batch8 = xsimd::batch<int8_t, Arch>;
   using ubatch8 = xsimd::batch<uint8_t, Arch>;
   using batch32 = xsimd::batch<int32_t, Arch>;
 
-  const size_t simd_width = width / batch8::size;
-  for (size_t B0_colidx = 0; B0_colidx < B_cols; B0_colidx += 8) {
+  engine(0, B_cols, 8, [A, B, A_rows, width, B_cols, &callback](size_t B0_colidx) {
+    const size_t simd_width = width / batch8::size;
     const auto *B0_col =
         reinterpret_cast<const batch8 *>(B) + simd_width * B0_colidx;
     /* Process one row of A at a time.  Doesn't seem to be faster to do multiple
@@ -1298,7 +1314,7 @@ void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
       auto total = PermuteSummer(pack0123, pack4567);
       callback(total, A_rowidx, B0_colidx, B_cols);
     }
-  }
+  });
 }
 
 template <class Arch>

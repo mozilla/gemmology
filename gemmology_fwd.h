@@ -19,7 +19,70 @@
 #include <tuple>
 #include <xsimd/xsimd.hpp>
 
+#ifdef GEMMOLOGY_WITH_STD_THREAD
+#include <thread>
+#include <vector>
+#endif
+
 namespace gemmology {
+
+struct SequentialExecutionEngine;
+
+#ifdef GEMMOLOGY_WITH_STD_THREAD
+struct StdThreadExecutionEngine {
+
+  StdThreadExecutionEngine(size_t PoolSize) : MaxPoolSize(PoolSize) {
+    Pool.reserve(PoolSize - 1);
+  }
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+    const size_t NbIter = (End - Start) / Stride;
+    const size_t NbThread = std::min(NbIter, MaxPoolSize);
+    const size_t Chunk = (NbIter / NbThread) * Stride;
+
+    size_t Curr = Start, Next = Start;
+
+    for(size_t threadID = 0; threadID < NbThread - 1; ++threadID) {
+      Next += Chunk;
+      Pool.emplace_back([=]() {
+        for(size_t i = Curr; i < Next; i += Stride) {
+          f(i);
+        };
+      });
+      Curr = Next;
+    }
+
+    for(size_t i = Next; i < End; i += Stride) {
+      f(i);
+    };
+    for(size_t threadID = 0; threadID < Pool.size(); ++threadID) {
+      Pool[threadID].join();
+    }
+    Pool.clear();
+  }
+
+  private:
+    const size_t MaxPoolSize;
+    std::vector<std::thread> Pool;
+
+};
+
+#endif
+
+#ifdef _OPENMP
+struct OpenMPExecutionEngine {
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+#pragma omp parallel for
+    for(size_t i = Start; i < End; i += Stride) {
+      f(i);
+    }
+  }
+
+};
+#endif
 
 namespace callbacks {
 
@@ -132,9 +195,10 @@ template <class Arch> struct Engine {
     static void PrepareA(const float *input, uint8_t *output, float quant_mult,
                          size_t rows, size_t cols);
 
-    template <class Callback>
+    template <class Callback, class ExecutionEngine>
     static void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
-                         size_t width, size_t B_cols, Callback callback);
+                         size_t width, size_t B_cols, Callback callback,
+                         ExecutionEngine& engine);
 
     template <class Callback>
     static void PrepareBias(const int8_t *B, size_t width, size_t B_cols,
@@ -199,10 +263,10 @@ inline void PrepareA(const float *input, uint8_t *output, float quant_mult,
   return Engine<Arch>::Shift::PrepareA(input, output, quant_mult, rows, cols);
 }
 
-template <class Arch = xsimd::default_arch, class Callback>
+template <class Arch = xsimd::default_arch, class Callback, class ExecutionEngine=SequentialExecutionEngine>
 inline void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
-                     size_t width, size_t B_cols, Callback C) {
-  return Engine<Arch>::Shift::Multiply(A, B, A_rows, width, B_cols, C);
+                     size_t width, size_t B_cols, Callback C, ExecutionEngine&& engine={}) {
+  return Engine<Arch>::Shift::Multiply(A, B, A_rows, width, B_cols, C, engine);
 }
 
 template <class Arch = xsimd::default_arch, class Callback>

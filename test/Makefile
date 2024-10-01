@@ -19,9 +19,10 @@ GEMMOLOGY_CXXFLAGS= -std=c++17 $(CXXFLAGS)
 
 all:check
 
-check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.avx512vnni check.neon check.neon64 check.neon64+i8mm
+check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 check.avx512vnni check.neon check.neon64 check.neon64+i8mm check.thread $(if $(NOOMP),,check.omp)
 
-clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64 check.neon64+i8mm
+clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64 clean.neon64+i8mm clean.thread $(if $(NOOMP),,clean.omp)
+
 
 # AVX512VNNI
 test_transpose.avx512vnni: test_transpose.cpp ../gemmology.h Makefile
@@ -272,3 +273,56 @@ check.neon64+i8mm:test_prepare_b_transposed.neon64+i8mm test_prepare_b_quantized
 
 clean.neon64+i8mm:
 	$(RM) test_prepare_b_transposed.neon64+i8mm test_prepare_b_quantized_transposed.neon64+i8mm test_multiply.neon64+i8mm test_quantize.neon64+i8mm test_transpose.neon64+i8mm
+
+# OpenMP
+test_transpose.omp: test_transpose.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -fopenmp
+
+test_prepare_b_transposed.omp: test_prepare_b_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -fopenmp
+
+test_prepare_b_quantized_transposed.omp: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -fopenmp
+
+test_multiply.omp:test_multiply.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -fopenmp
+
+test_quantize.omp:test_quantize.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -fopenmp
+
+check.omp:test_prepare_b_transposed.omp test_prepare_b_quantized_transposed.omp test_multiply.omp test_quantize.omp test_transpose.omp
+	./test_transpose.omp
+	./test_prepare_b_transposed.omp
+	./test_prepare_b_quantized_transposed.omp
+	./test_quantize.omp
+	./test_multiply.omp
+
+clean.omp:
+	$(RM) test_prepare_b_transposed.omp test_prepare_b_quantized_transposed.omp test_multiply.omp test_quantize.omp test_transpose.omp
+
+
+# Thread
+test_transpose.thread: test_transpose.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -DGEMMOLOGY_WITH_STD_THREAD
+
+test_prepare_b_transposed.thread: test_prepare_b_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -DGEMMOLOGY_WITH_STD_THREAD
+
+test_prepare_b_quantized_transposed.thread: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -DGEMMOLOGY_WITH_STD_THREAD
+
+test_multiply.thread:test_multiply.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -DGEMMOLOGY_WITH_STD_THREAD
+
+test_quantize.thread:test_quantize.cpp Makefile ../gemmology.h
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -DGEMMOLOGY_WITH_STD_THREAD
+
+check.thread:test_prepare_b_transposed.thread test_prepare_b_quantized_transposed.thread test_multiply.thread test_quantize.thread test_transpose.thread
+	./test_transpose.thread
+	./test_prepare_b_transposed.thread
+	./test_prepare_b_quantized_transposed.thread
+	./test_quantize.thread
+	./test_multiply.thread
+
+clean.thread:
+	$(RM) test_prepare_b_transposed.thread test_prepare_b_quantized_transposed.thread test_multiply.thread test_quantize.thread test_transpose.thread
