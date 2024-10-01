@@ -7,6 +7,11 @@
 #include <cstring>
 #include <tuple>
 
+#ifdef GEMMOLOGY_WITH_STD_THREAD
+#include <thread>
+#include <vector>
+#endif
+
 #include <xsimd/xsimd.hpp>
 
 namespace gemmology {
@@ -1245,18 +1250,85 @@ void Engine<Arch>::Shift::PrepareA(const float *input, uint8_t *output,
   QuantizeU(input, output, quant_mult, rows * cols);
 }
 
+struct SequentialExecutionEngine {
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+    for(size_t i = Start; i < End; i += Stride) {
+      f(i);
+    }
+  }
+
+};
+
+#ifdef GEMMOLOGY_WITH_STD_THREAD
+struct StdThreadExecutionEngine {
+
+  StdThreadExecutionEngine(size_t PoolSize) : MaxPoolSize(PoolSize) {
+    Pool.reserve(PoolSize - 1);
+  }
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+    const size_t NbIter = (End - Start) / Stride;
+    const size_t NbThread = std::min(NbIter, MaxPoolSize);
+    const size_t Chunk = (NbIter / NbThread) * Stride;
+
+    size_t Curr = Start, Next = Start;
+
+    for(size_t threadID = 0; threadID < NbThread - 1; ++threadID) {
+      Next += Chunk;
+      Pool.emplace_back([=]() {
+        for(size_t i = Curr; i < Next; i += Stride) {
+          f(i);
+        };
+      });
+      Curr = Next;
+    }
+
+    for(size_t i = Next; i < End; i += Stride) {
+      f(i);
+    };
+    for(size_t threadID = 0; threadID < Pool.size(); ++threadID) {
+      Pool[threadID].join();
+    }
+    Pool.clear();
+  }
+
+  private:
+    const size_t MaxPoolSize;
+    std::vector<std::thread> Pool;
+
+};
+
+#endif
+
+#ifdef _OPENMP
+struct OpenMPExecutionEngine {
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+#pragma omp parallel for
+    for(size_t i = Start; i < End; i += Stride) {
+      f(i);
+    }
+  }
+
+};
+#endif
+
 template <class Arch>
-template <class Callback>
+template <class Callback, class ExecutionEngine>
 void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
                                    size_t A_rows, size_t width, size_t B_cols,
-                                   Callback callback) {
+                                   Callback callback, ExecutionEngine& engine) {
 
   using batch8 = xsimd::batch<int8_t, Arch>;
   using ubatch8 = xsimd::batch<uint8_t, Arch>;
   using batch32 = xsimd::batch<int32_t, Arch>;
 
-  const size_t simd_width = width / batch8::size;
-  for (size_t B0_colidx = 0; B0_colidx < B_cols; B0_colidx += 8) {
+  engine(0, B_cols, 8, [A, B, A_rows, width, B_cols, &callback](size_t B0_colidx) {
+    const size_t simd_width = width / batch8::size;
     const auto *B0_col =
         reinterpret_cast<const batch8 *>(B) + simd_width * B0_colidx;
     /* Process one row of A at a time.  Doesn't seem to be faster to do multiple
@@ -1298,7 +1370,7 @@ void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
       auto total = PermuteSummer(pack0123, pack4567);
       callback(total, A_rowidx, B0_colidx, B_cols);
     }
-  }
+  });
 }
 
 template <class Arch>

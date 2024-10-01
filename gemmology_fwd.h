@@ -21,6 +21,8 @@
 
 namespace gemmology {
 
+struct SequentialExecutionEngine;
+
 namespace callbacks {
 
 struct Unquantize {
@@ -132,9 +134,10 @@ template <class Arch> struct Engine {
     static void PrepareA(const float *input, uint8_t *output, float quant_mult,
                          size_t rows, size_t cols);
 
-    template <class Callback>
+    template <class Callback, class ExecutionEngine>
     static void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
-                         size_t width, size_t B_cols, Callback callback);
+                         size_t width, size_t B_cols, Callback callback,
+                         ExecutionEngine& engine);
 
     template <class Callback>
     static void PrepareBias(const int8_t *B, size_t width, size_t B_cols,
@@ -199,10 +202,10 @@ inline void PrepareA(const float *input, uint8_t *output, float quant_mult,
   return Engine<Arch>::Shift::PrepareA(input, output, quant_mult, rows, cols);
 }
 
-template <class Arch = xsimd::default_arch, class Callback>
+template <class Arch = xsimd::default_arch, class Callback, class ExecutionEngine=SequentialExecutionEngine>
 inline void Multiply(const uint8_t *A, const int8_t *B, size_t A_rows,
-                     size_t width, size_t B_cols, Callback C) {
-  return Engine<Arch>::Shift::Multiply(A, B, A_rows, width, B_cols, C);
+                     size_t width, size_t B_cols, Callback C, ExecutionEngine&& engine={}) {
+  return Engine<Arch>::Shift::Multiply(A, B, A_rows, width, B_cols, C, engine);
 }
 
 template <class Arch = xsimd::default_arch, class Callback>
