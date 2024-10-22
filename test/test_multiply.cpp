@@ -402,6 +402,8 @@ int main() {
 #endif
   if (!TestSelectColumnsB(256, 256))
     return 1;
+  if (!TestSelectColumnsB(512, 512))
+    return 1;
 
   if (!TestPrepareA(64, 64))
     return 1;
@@ -430,6 +432,8 @@ int main() {
   if (!TestMultiplyShiftInt(248, 256, 256, 0.0001f, 0.64f, 0.16f, 0.0001f))
     return 1;
   if (!TestMultiplyShiftInt(200, 256, 256, 0.0001f, 0.74f, 0.17f, 0.0001f))
+    return 1;
+  if (!TestMultiplyShiftInt(2, 512, 512, 0.0001f, 0.74f, 0.17f, 0.0001f))
     return 1;
 
   return 0;
