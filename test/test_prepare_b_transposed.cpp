@@ -65,6 +65,8 @@ bool TestMany(int B_rows, int B_cols, float quant_mult) {
 int main() {
   if(!TestMany(16, 128, 2.0f))
     return 1;
+  if(!TestMany(512, 512, 2.0f))
+    return 1;
   return 0;
 }
 

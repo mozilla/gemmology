@@ -62,5 +62,7 @@ bool TestMany(int B_rows, int B_cols) {
 int main() {
   if(!TestMany(64, 128))
     return 1;
+  if(!TestMany(512, 512))
+    return 1;
   return 0;
 }
