@@ -23,22 +23,23 @@ check:check.avx2 check.avxvnni check.sse4 check.ssse3 check.sse2 check.avx512 ch
 
 clean:clean.avx2 clean.avxvnni clean.sse4 clean.ssse3 clean.sse2 clean.avx512 clean.avx512vnni clean.neon clean.neon64 clean.neon64+i8mm clean.thread $(if $(NOOMP),,clean.omp)
 
+GEMMOLOGY_NOASAN_CXXFLAGS=$(filter-out -fsanitize=address,$(GEMMOLOGY_CXXFLAGS))
 
 # AVX512VNNI
 test_transpose.avx512vnni: test_transpose.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_prepare_b_transposed.avx512vnni: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_prepare_b_quantized_transposed.avx512vnni: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_multiply.avx512vnni:test_multiply.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_quantize.avx512vnni:test_quantize.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@  -mavx512vnni -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 check.avx512vnni:test_prepare_b_transposed.avx512vnni test_prepare_b_quantized_transposed.avx512vnni test_multiply.avx512vnni test_quantize.avx512vnni test_transpose.avx512vnni
 	$(SDE64) -icx -- ./test_transpose.avx512vnni
@@ -53,19 +54,19 @@ clean.avx512vnni:
 
 # AVX512
 test_transpose.avx512: test_transpose.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_prepare_b_transposed.avx512: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_prepare_b_quantized_transposed.avx512: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_multiply.avx512:test_multiply.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 test_quantize.avx512:test_quantize.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavx512bw -mavx512f -mavx512dq -mavx512cd
 
 check.avx512:test_prepare_b_transposed.avx512 test_prepare_b_quantized_transposed.avx512 test_multiply.avx512 test_quantize.avx512 test_transpose.avx512
 	$(SDE64) -skx -- ./test_transpose.avx512
@@ -79,19 +80,19 @@ clean.avx512:
 
 # AVXVNNI
 test_transpose.avxvnni: test_transpose.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavxvnni
 
 test_prepare_b_transposed.avxvnni: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavxvnni
 
 test_prepare_b_quantized_transposed.avxvnni: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavxvnni
 
 test_multiply.avxvnni:test_multiply.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavxvnni
 
 test_quantize.avxvnni:test_quantize.cpp Makefile ../gemmology.h
-	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mavxvnni
+	$(CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mavxvnni
 
 check.avxvnni:test_prepare_b_transposed.avxvnni test_prepare_b_quantized_transposed.avxvnni test_multiply.avxvnni test_quantize.avxvnni test_transpose.avxvnni
 	$(SDE64) -adl -- ./test_transpose.avxvnni
@@ -210,16 +211,16 @@ clean.sse2:
 
 # Neon
 test_prepare_b_transposed.neon: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mfpu=neon
 
 test_prepare_b_quantized_transposed.neon: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mfpu=neon
 
 test_multiply.neon:test_multiply.cpp Makefile ../gemmology.h
-	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mfpu=neon
 
 test_quantize.neon:test_quantize.cpp Makefile ../gemmology.h
-	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -mfpu=neon
+	$(ARM_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -mfpu=neon
 
 check.neon:test_prepare_b_transposed.neon test_prepare_b_quantized_transposed.neon test_multiply.neon test_quantize.neon
 	$(ARM_QEMU) ./test_prepare_b_transposed.neon
@@ -232,16 +233,16 @@ clean.neon:
 
 # Neon64
 test_prepare_b_transposed.neon64: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@
 
 test_prepare_b_quantized_transposed.neon64: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@
 
 test_multiply.neon64:test_multiply.cpp Makefile ../gemmology.h
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@
 
 test_quantize.neon64:test_quantize.cpp Makefile ../gemmology.h
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@
 
 check.neon64:test_prepare_b_transposed.neon64 test_prepare_b_quantized_transposed.neon64 test_multiply.neon64 test_quantize.neon64
 	$(ARM64_QEMU) ./test_prepare_b_transposed.neon64
@@ -254,16 +255,16 @@ clean.neon64:
 
 # Neon64+i8mm
 test_prepare_b_transposed.neon64+i8mm: test_prepare_b_transposed.cpp ../gemmology.h Makefile
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
 
 test_prepare_b_quantized_transposed.neon64+i8mm: test_prepare_b_quantized_transposed.cpp ../gemmology.h Makefile
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
 
 test_multiply.neon64+i8mm:test_multiply.cpp Makefile ../gemmology.h
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
 
 test_quantize.neon64+i8mm:test_quantize.cpp Makefile ../gemmology.h
-	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
+	$(ARM64_CXX) $(GEMMOLOGY_CPPFLAGS) $(GEMMOLOGY_NOASAN_CXXFLAGS) $< -o $@ -march=armv8.4-a+i8mm
 
 check.neon64+i8mm:test_prepare_b_transposed.neon64+i8mm test_prepare_b_quantized_transposed.neon64+i8mm test_multiply.neon64+i8mm test_quantize.neon64+i8mm
 	$(ARM64_QEMU) ./test_prepare_b_transposed.neon64+i8mm

@@ -145,6 +145,10 @@ bool TestPrepare(int rows, int cols) {
     std::cerr << " Mismatch:\n";
     return false;
   }
+  free(input);
+  free(test);
+  free(quantized);
+  free(reference);
   return true;
 }
 #endif
@@ -170,7 +174,11 @@ bool TestPrepareA(int rows, int cols) {
   float quant_mult = 64; // From example
   gemmology::PrepareA(inputA, oldA, quant_mult, rows, cols);
   gemmology::Shift::PrepareA(inputA, newA, quant_mult, rows, cols);
-  return CompareAs(oldA, newA, rows, cols);
+  bool res =  CompareAs(oldA, newA, rows, cols);
+  free(inputA);
+  free(oldA);
+  free(newA);
+  return res;
 }
 
 bool TestSelectColumnsB(int rows, int cols) {
@@ -218,6 +226,12 @@ bool TestSelectColumnsB(int rows, int cols) {
     std::cerr << "mismatch\n";
     return false;
   }
+
+  free(input);
+  free(prepared);
+  free(test);
+  free(selected);
+  free(ref);
   return true;
 }
 
@@ -327,8 +341,20 @@ bool TestMultiplyShiftInt(int A_rows, int width, int B_cols,
                 return sum * unquant_mult + ShiftedBias[j];
               });
 
-  return CompareMSE(float_C, slowint_C, test_C, C_size, int_tolerance,
+  bool res = CompareMSE(float_C, slowint_C, test_C, C_size, int_tolerance,
                     float_tolerance, MSE_float_tolerance, MSE_int_tolerance);
+  free(A);
+  free(B);
+  free(bias);
+  free(A_prep);
+  free(B_prep);
+  free(test_C);
+  free(B_quant);
+  free(slowint_C);
+  free(float_C);
+  free(A_prep2);
+  free(ShiftedBias);
+  return res;
 }
 
 bool TestPrepareBias(int rows, int cols) {
@@ -391,7 +417,15 @@ bool TestPrepareBias(int rows, int cols) {
               [&](int32_t sum, int i, int j) {
                 return sum * unquant_mult_forprep + goldBias[j];
               });
-  return CompareEps(slowint_C, inputBias, cols, 0.0001f);
+  bool res =  CompareEps(slowint_C, inputBias, cols, 0.0001f);
+  free(inputB);
+  free(B_prep);
+  free(B_quant);
+  free(inputBias);
+  free(goldBias);
+  free(A_prep2);
+  free(slowint_C);
+  return res;
 }
 } // namespace
 

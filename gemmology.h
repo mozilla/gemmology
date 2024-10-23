@@ -1139,7 +1139,9 @@ void Engine<Arch>::Quantize(const float *const input, int8_t *const output,
   }
   auto result =
       QuantizeTile8::Tile(q, inputs[0], inputs[1], inputs[2], inputs[3]);
-  std::memcpy(output + (size & ~(kBatch - 1)), &result, overhang);
+  alignas(Arch::alignment()) int8_t buffer[kBatch];
+  result.store_aligned(buffer);
+  std::memcpy(output + (size & ~(kBatch - 1)), buffer, overhang);
 }
 
 template <class Arch>

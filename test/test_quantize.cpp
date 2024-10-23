@@ -28,12 +28,17 @@ template <class I> bool IsOff(float from, I ref, I test) {
 bool Test(const float *input_unaligned, float quant_mult, std::size_t size) {
   bool success = true;
   float *input;
-  posix_memalign((void**)&input, 32, size * sizeof(*input));
+  constexpr std::size_t batch_padding = sizeof(xsimd::batch<uint8_t>) - 1;
+  constexpr char sentinel = 0xFF;
+  posix_memalign((void**)&input, 32, size * sizeof(*input) + batch_padding);
   std::memcpy(input, input_unaligned, sizeof(*input) * size);
+
+  // Fill the padding zone with sentinel value, and make sure it isn't changed.
+  std::fill((char*)input + sizeof(*input) * size, (char*)input + sizeof(*input) * size + batch_padding, sentinel);
 
   int8_t *ref;
   posix_memalign((void**)&ref, 32, size * sizeof(*ref));
-  QuantizeRef(input, ref, quant_mult, size);
+  QuantizeRef(input, ref, quant_mult, sizeof(*ref) * size);
 
   int8_t *test;
   posix_memalign((void**)&test, 32, size * sizeof(*test));
@@ -45,6 +50,17 @@ bool Test(const float *input_unaligned, float quant_mult, std::size_t size) {
       success = false;
     }
   }
+
+  for(size_t i = 0; i < batch_padding; ++i) {
+    if(((char*)input)[sizeof(*input) * size +i] != sentinel) {
+      std::cerr << "Sentinel value used for padding changed :-/\n";
+      success = false;
+    }
+  }
+
+  free(input);
+  free(ref);
+  free(test);
   return success;
 }
 
