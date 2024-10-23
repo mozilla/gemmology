@@ -43,6 +43,9 @@ bool TestTranspose16() {
       return false;
     }
   }
+
+  free(input);
+  free(ref);
   return true;
 }
 
