@@ -1214,6 +1214,21 @@ void Engine<Arch>::PrepareBQuantizedTransposed(const int8_t *input,
 }
 
 template <class Arch>
+void Engine<Arch>::PrepareBQuantized(const int8_t *input,
+                                     int8_t *output, size_t cols,
+                                     size_t rows) {
+  using batch8 = xsimd::batch<int8_t, Arch>;
+  const size_t RegisterElems = batch8::size;
+  const size_t kColStride = 8;
+
+  auto *output_it = reinterpret_cast<batch8 *>(output);
+  for (size_t r = 0; r < rows; r += kColStride)
+    for (size_t c = 0; c < cols; c += RegisterElems)
+      for (size_t ri = 0; ri < 8; ++ri)
+        *output_it++ = batch8::load_unaligned(input + (c) * rows + r + ri);
+}
+
+template <class Arch>
 void Engine<Arch>::PrepareB(const float *input, int8_t *output_shadow,
                             float quant_mult, size_t rows, size_t cols) {
   using batch8 = xsimd::batch<int8_t, Arch>;
