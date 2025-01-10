@@ -113,6 +113,7 @@ struct Write {
   float *output_addr;
 
   Write(float *o) : output_addr(o) {}
+  Write(int32_t *o) : output_addr(reinterpret_cast<float*>(o)) {}
 
   template <class Arch>
   void operator()(xsimd::batch<float, Arch> result, size_t row_idx,
@@ -184,6 +185,9 @@ template <class Arch> struct Engine {
   static void PrepareBQuantizedTransposed(const int8_t *input, int8_t *output,
                                           size_t cols, size_t rows);
 
+  static void PrepareBQuantized(const int8_t *input, int8_t *output,
+                                size_t cols, size_t rows);
+
   static void PrepareB(const float *input, int8_t *output_shadow,
                        float quant_mult, size_t rows, size_t cols);
 
@@ -235,6 +239,12 @@ inline void PrepareBTransposed(const float *input, int8_t *output,
                                float quant_mult, size_t cols, size_t rows) {
   return Engine<Arch>::PrepareBTransposed(input, output, quant_mult, cols,
                                           rows);
+}
+
+template <class Arch = xsimd::default_arch>
+inline void PrepareBQuantized(const int8_t *input, int8_t *output,
+                                        size_t cols, size_t rows) {
+  return Engine<Arch>::PrepareBQuantized(input, output, cols, rows);
 }
 
 template <class Arch = xsimd::default_arch>
