@@ -613,14 +613,14 @@ template <class Arch>
 inline xsimd::batch<int32_t, Arch>
 maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
       xsimd::batch<int32_t, Arch> z,
-      xsimd::kernel::requires_arch<xsimd::generic>) {
+      xsimd::kernel::requires_arch<xsimd::common>) {
   return z + madd(xsimd::batch<int16_t, Arch>(1), madd(x, y, Arch{}), Arch{});
 }
 
 template <class Arch>
 inline xsimd::batch<int32_t, Arch>
 maddw(xsimd::batch<uint8_t, Arch> x, xsimd::batch<int8_t, Arch> y,
-      xsimd::kernel::requires_arch<xsimd::generic>) {
+      xsimd::kernel::requires_arch<xsimd::common>) {
   return maddw(x, y, xsimd::batch<int32_t, Arch>(0), Arch{});
 }
 
@@ -691,7 +691,7 @@ namespace kernel {
                                         xsimd::batch<int32_t, Arch> sum1,
                                         xsimd::batch<int32_t, Arch> sum2,
                                         xsimd::batch<int32_t, Arch> sum3,
-                                        xsimd::kernel::requires_arch<xsimd::generic>) {
+                                        xsimd::kernel::requires_arch<xsimd::common>) {
 
     std::tie(sum0, sum1) = interleave(sum0, sum1, Arch{});
     auto pack01 = sum0 + sum1;
@@ -836,7 +836,7 @@ public:
 
       return xsimd::bitwise_cast<int8_t>(
           xsimd::swizzle(xsimd::bitwise_cast<int32_t>(packed),
-                         xsimd::make_batch_constant<uint32_t, Arch, Tiler<Arch>>()));
+                         xsimd::make_batch_constant<uint32_t, Tiler<Arch>, Arch>()));
     } else if constexpr (batchf32::size == 8)
       return Tile(quant_mult, input, input + 2 * cols, input + 16 * cols,
                   input + 18 * cols);
@@ -878,7 +878,7 @@ public:
     // and the values are only used for GEMM.
     return xsimd::bitwise_cast<int8_t>(
         xsimd::swizzle(xsimd::bitwise_cast<int32_t>(packed),
-                       xsimd::make_batch_constant<uint32_t, Arch, Tiler<Arch>>()));
+                       xsimd::make_batch_constant<uint32_t, Tiler<Arch>, Arch>()));
   }
 
 private:
@@ -914,7 +914,7 @@ private:
     // and the values are only used for GEMM.
     return xsimd::bitwise_cast<uint8_t>(
         xsimd::swizzle(xsimd::bitwise_cast<int32_t>(packed),
-                       xsimd::make_batch_constant<uint32_t, Arch, Tiler<Arch>>()));
+                       xsimd::make_batch_constant<uint32_t, Tiler<Arch>, Arch>()));
   }
 };
 
