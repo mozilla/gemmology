@@ -1285,17 +1285,6 @@ void Engine<Arch>::Shift::PrepareA(const float *input, uint8_t *output,
   QuantizeU(input, output, quant_mult, rows * cols);
 }
 
-struct SequentialExecutionEngine {
-
-  template<class F>
-  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
-    for(size_t i = Start; i < End; i += Stride) {
-      f(i);
-    }
-  }
-
-};
-
 template <class Arch>
 template <class Callback, class ExecutionEngine>
 void Engine<Arch>::Shift::Multiply(const uint8_t *A, const int8_t *B,
