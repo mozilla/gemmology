@@ -26,7 +26,17 @@
 
 namespace gemmology {
 
-struct SequentialExecutionEngine;
+struct SequentialExecutionEngine {
+
+  template<class F>
+  inline void operator()(size_t Start, size_t End, size_t Stride, F&& f) {
+    for(size_t i = Start; i < End; i += Stride) {
+      f(i);
+    }
+  }
+
+};
+
 
 #ifdef GEMMOLOGY_WITH_STD_THREAD
 struct StdThreadExecutionEngine {
